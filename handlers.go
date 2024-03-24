@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"github.com/mbeka02/bank/internal/database"
+	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/mbeka02/bank/internal/database"
 )
 
 type APIServer struct {
@@ -12,6 +13,31 @@ type APIServer struct {
 	DB   *database.Queries
 }
 
+type APIFunc func(w http.ResponseWriter, r *http.Request) error
+
+type APIError struct {
+	Error string `json:"error"`
+}
+
+// handle JSON responses
+func JSONResponse(w http.ResponseWriter, statusCode int, payload interface{}) error {
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	return json.NewEncoder(w).Encode(&payload)
+}
+
+// modify the function signature to that of a normal handler function
+func modifyAPIFunc(fn APIFunc) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := fn(w, r); err != nil {
+			JSONResponse(w, http.StatusBadRequest, APIError{err.Error()})
+		}
+	}
+
+}
 func NewServer(addr string, queries *database.Queries) *APIServer {
 
 	return &APIServer{
@@ -23,8 +49,8 @@ func NewServer(addr string, queries *database.Queries) *APIServer {
 func (s *APIServer) Run() {
 	router := http.NewServeMux()
 
-	router.HandleFunc("GET /", s.handleGreetings)
-	router.HandleFunc("GET /accounts", s.handleGetAccounts)
+	router.HandleFunc("GET /", modifyAPIFunc(s.handleGreetings))
+	router.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
 
 	log.Printf("Server is running on port %v", s.Addr)
 
@@ -36,18 +62,18 @@ func (s *APIServer) Run() {
 
 }
 
-func (s *APIServer) handleGreetings(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) handleGreetings(w http.ResponseWriter, r *http.Request) error {
 	name := "anthony"
-	fmt.Fprintf(w, "Greetings : %v", name)
+	return JSONResponse(w, http.StatusOK, name)
 
 }
 
-func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error {
 	accounts, err := s.DB.GetAccounts(r.Context())
 
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
-	fmt.Fprintf(w, "%v", accounts)
+	return JSONResponse(w, http.StatusOK, accounts)
 }

@@ -12,7 +12,7 @@ import (
 
 func NewPostgresStore() (*sql.DB, error) {
 	godotenv.Load(".env")
-	connString := os.Getenv("DB_CONN")
+	connString := os.Getenv("DB_URL")
 
 	if connString == "" {
 		log.Fatal("connection string is not set")
