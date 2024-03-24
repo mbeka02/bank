@@ -69,8 +69,10 @@ func (s *APIServer) handleGreetings(w http.ResponseWriter, r *http.Request) erro
 }
 
 func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error {
-	accounts, err := s.DB.GetAccounts(r.Context())
-
+	accounts, err := s.DB.GetAccounts(r.Context(), database.GetAccountsParams{
+		Limit:  40,
+		Offset: 2,
+	})
 	if err != nil {
 		return err
 	}
