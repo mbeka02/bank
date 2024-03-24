@@ -57,7 +57,7 @@ func (s *APIServer) Run() {
 	err := http.ListenAndServe(s.Addr, router)
 
 	if err != nil {
-		log.Fatal("Unable to run the server")
+		log.Fatal("Unable to spin up the server")
 	}
 
 }

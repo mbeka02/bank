@@ -10,7 +10,7 @@ SELECT * FROM accounts WHERE id=$1 LIMIT 1;
 -- name: UpdateAccount :one
 UPDATE accounts SET balance=$1 WHERE id=$2 RETURNING *;
 
--- name: CreateAccount :many
+-- name: CreateAccount :one
 INSERT INTO accounts (full_name, balance, currency)
 VALUES ($1,$2,$3)
 RETURNING *;
