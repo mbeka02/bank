@@ -13,4 +13,5 @@ CREATE INDEX ON entries(account_id);
 
 
 -- +goose Down
+
 DROP TABLE entries;
