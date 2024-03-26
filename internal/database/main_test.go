@@ -11,13 +11,14 @@ import (
 )
 
 var testQueries *Queries
+var testDB *sql.DB
 
 const (
 	dbDriver = "postgres"
 )
 
 func TestMain(m *testing.M) {
-
+	var err error
 	godotenv.Load("../../.env")
 	connString := os.Getenv("DB_URL")
 
@@ -26,12 +27,13 @@ func TestMain(m *testing.M) {
 
 	}
 
-	conn, err := sql.Open(dbDriver, connString)
+	testDB, err = sql.Open(dbDriver, connString)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	testQueries = New(conn)
+	testQueries = New(testDB)
+
 	os.Exit(m.Run())
 }

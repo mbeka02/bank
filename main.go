@@ -1,23 +1,28 @@
 package main
 
 import (
-	//"os"
-	//"database/sql"
-
 	"log"
+	"os"
 
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"github.com/mbeka02/bank/internal/database"
 )
 
 func main() {
 	godotenv.Load(".env")
-	conn, err := NewPostgresStore()
+	connectionString := os.Getenv("DB_URL")
+
+	if connectionString == "" {
+		log.Fatal("connection string is not set")
+	}
+
+	store, err := database.NewPostgresStore(connectionString)
+
 	if err != nil {
 		log.Fatal(err)
 	}
-	queries := database.New(conn)
-	server := NewServer(":5413", queries)
+	server := NewServer(":5413", store)
 
 	server.Run()
 }
