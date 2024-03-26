@@ -51,6 +51,7 @@ func (s *APIServer) Run() {
 
 	router.HandleFunc("GET /", modifyAPIFunc(s.handleGreetings))
 	router.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
+	router.HandleFunc("GET /transactions", modifyAPIFunc(s.handleGetTransactions))
 
 	log.Printf("Server is running on port %v", s.Addr)
 
@@ -78,4 +79,15 @@ func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) er
 	}
 
 	return JSONResponse(w, http.StatusOK, accounts)
+}
+
+func (s *APIServer) handleGetTransactions(w http.ResponseWriter, r *http.Request) error {
+	transactions, err := s.DB.GetTransactions(r.Context(), database.GetTransactionsParams{
+		Limit:  5,
+		Offset: 5,
+	})
+	if err != nil {
+		return err
+	}
+	return JSONResponse(w, http.StatusOK, transactions)
 }

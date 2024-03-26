@@ -22,3 +22,10 @@ type Entry struct {
 	Amount    int64
 	CreatedAt time.Time
 }
+
+type Transaction struct {
+	ID         int64
+	Amount     int64
+	SenderID   int64
+	ReceiverID int64
+}
