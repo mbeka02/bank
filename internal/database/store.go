@@ -13,6 +13,8 @@ type Store struct {
 	db *sql.DB
 }
 
+var transactionKey = struct{}{}
+
 func NewPostgresStore(connectionString string) (*Store, error) {
 
 	conn, err := sql.Open("postgres", connectionString)
@@ -41,8 +43,9 @@ func (store *Store) execTx(ctx context.Context, fn func(*Queries) error) error {
 	}
 
 	q := New(tx)
+	//exec the callback fn and return an error if it fails
 	err = fn(q)
-	//rollback the transaction
+	//rollback the transaction in case of failure
 	if err != nil {
 		//if the rollback also fails return both errors
 		if rbErr := tx.Rollback(); rbErr != nil {
@@ -50,7 +53,7 @@ func (store *Store) execTx(ctx context.Context, fn func(*Queries) error) error {
 		}
 		return err
 	}
-	//commit the transaction and return its error to the caller
+	//commit the transaction and return its error if it occurs
 	return tx.Commit()
 }
 
@@ -74,6 +77,7 @@ func (store *Store) TransferTx(ctx context.Context, params TransferTxParams) (Tr
 		if err != nil {
 			return err
 		}
+
 		result.ReceiverEntry, err = q.CreateEntry(ctx, CreateEntryParams{
 			AccountID: result.Transfer.ReceiverID,
 			Amount:    result.Transfer.Amount,
@@ -81,7 +85,21 @@ func (store *Store) TransferTx(ctx context.Context, params TransferTxParams) (Tr
 		if err != nil {
 			return err
 		}
-		//TO DO ; UPDATE ACCOUNT BALANCES
+
+		result.SenderAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
+			ID:     params.SenderID,
+			Amount: -params.Amount,
+		})
+		if err != nil {
+			return err
+		}
+		result.ReceiverAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
+			ID:     params.ReceiverID,
+			Amount: params.Amount,
+		})
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 

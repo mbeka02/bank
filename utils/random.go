@@ -39,7 +39,7 @@ func RandName() string {
 }
 
 func RandMoney() int64 {
-	money := RandInt(99, 1000)
+	money := RandInt(2000, 6000)
 	return money
 }
 
