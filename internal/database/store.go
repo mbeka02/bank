@@ -85,25 +85,39 @@ func (store *Store) TransferTx(ctx context.Context, params TransferTxParams) (Tr
 		if err != nil {
 			return err
 		}
-
-		result.SenderAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
-			ID:     params.SenderID,
-			Amount: -params.Amount,
-		})
-		if err != nil {
-			return err
-		}
-		result.ReceiverAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
-			ID:     params.ReceiverID,
-			Amount: params.Amount,
-		})
-		if err != nil {
-			return err
+		if params.SenderID < params.ReceiverID {
+			result.SenderAccount, result.ReceiverAccount, err = addMoney(ctx, q, params.SenderID, params.ReceiverID, -params.Amount, params.Amount)
+			if err != nil {
+				return err
+			}
+		} else {
+			result.ReceiverAccount, result.SenderAccount, err = addMoney(ctx, q, params.ReceiverID, params.SenderID, params.Amount, -params.Amount)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})
 
 	return result, err
+}
+
+func addMoney(ctx context.Context, q *Queries, account1ID int64, account2ID int64, amount1 int64, amount2 int64) (account1 Account, account2 Account, err error) {
+	account1, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
+		ID:     account1ID,
+		Amount: amount1,
+	})
+	if err != nil {
+		return
+	}
+	account2, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
+		ID:     account2ID,
+		Amount: amount2,
+	})
+	if err != nil {
+		return
+	}
+	return
 }
 
 type TransferTxParams struct {
