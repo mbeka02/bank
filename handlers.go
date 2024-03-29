@@ -52,8 +52,12 @@ func (s *APIServer) Run() {
 
 	router.HandleFunc("GET /", modifyAPIFunc(s.handleGreetings))
 	router.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
+
 	router.HandleFunc("GET /transfers", modifyAPIFunc(s.handleGetTranfers))
+	router.HandleFunc("POST /transfers", modifyAPIFunc(s.handleTransferTx))
+
 	router.HandleFunc("GET /entries", modifyAPIFunc(s.handleGetEntries))
+
 	router.HandleFunc("GET /accounts/{id}", modifyAPIFunc(s.handleGetAccount))
 	router.HandleFunc("GET /entries/{id}", modifyAPIFunc(s.handleGetEntry))
 	router.HandleFunc("GET /transfers/{id}", modifyAPIFunc(s.handleGetTransfer))
@@ -146,6 +150,26 @@ func (s *APIServer) handleGetTransfer(w http.ResponseWriter, r *http.Request) er
 	}
 	return JSONResponse(w, http.StatusOK, transfer)
 
+}
+
+func (s *APIServer) handleTransferTx(w http.ResponseWriter, r *http.Request) error {
+
+	params := database.TransferTxParams{}
+	err := json.NewDecoder(r.Body).Decode(&params)
+
+	if err != nil {
+		return err
+	}
+	transferTxResult, err := s.store.TransferTx(r.Context(), database.TransferTxParams{
+		SenderID:   params.SenderID,
+		ReceiverID: params.ReceiverID,
+		Amount:     params.Amount,
+	})
+
+	if err != nil {
+		return err
+	}
+	return JSONResponse(w, http.StatusOK, transferTxResult)
 }
 
 // get path value and convert it to int64
