@@ -42,7 +42,8 @@ jobs:
       - name: run migrations
         run: |
           cd sql/schema
-          make ci-migrate
-
+          goose postgres postgres://root:postgres@localhost:5432/simple_bank up
       - name: Test
+        env:
+          DB_URL: ${{secrets.DB_URL}}
         run: make test
