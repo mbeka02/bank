@@ -41,7 +41,7 @@ jobs:
 
       - name: run migrations
         run: cd sql/schema
-          goose postgres postgres://root:postgres@localhost:5432/simple_bank up
+          make ci-migrate
 
       - name: Test
         run: make test
