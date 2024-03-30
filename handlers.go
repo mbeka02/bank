@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/mbeka02/bank/internal/database"
 )
 
@@ -52,6 +53,7 @@ func (s *APIServer) Run() {
 
 	router.HandleFunc("GET /", modifyAPIFunc(s.handleGreetings))
 	router.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
+	router.HandleFunc("POST /accounts", modifyAPIFunc(s.handleCreateAccount))
 
 	router.HandleFunc("GET /transfers", modifyAPIFunc(s.handleGetTranfers))
 	router.HandleFunc("POST /transfers", modifyAPIFunc(s.handleTransferTx))
@@ -154,10 +156,13 @@ func (s *APIServer) handleGetTransfer(w http.ResponseWriter, r *http.Request) er
 
 func (s *APIServer) handleTransferTx(w http.ResponseWriter, r *http.Request) error {
 
-	params := database.TransferTxParams{}
+	params := TransferTxRequest{}
 	err := json.NewDecoder(r.Body).Decode(&params)
-
 	if err != nil {
+		return err
+	}
+	validate := validator.New()
+	if err := validate.Struct(params); err != nil {
 		return err
 	}
 	transferTxResult, err := s.store.TransferTx(r.Context(), database.TransferTxParams{
@@ -170,6 +175,30 @@ func (s *APIServer) handleTransferTx(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 	return JSONResponse(w, http.StatusOK, transferTxResult)
+}
+func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
+	params := CreateAccountRequest{}
+	err := json.NewDecoder(r.Body).Decode(&params)
+
+	if err != nil {
+		return err
+	}
+	validate := validator.New()
+	if err := validate.Struct(params); err != nil {
+		return err
+	}
+
+	account, err := s.store.CreateAccount(r.Context(), database.CreateAccountParams{
+		FullName: params.FullName,
+		Currency: params.Currency,
+		Balance:  0,
+	})
+
+	if err != nil {
+
+		return err
+	}
+	return JSONResponse(w, http.StatusOK, account)
 }
 
 // get path value and convert it to int64
