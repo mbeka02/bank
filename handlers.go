@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -18,7 +19,13 @@ type APIServer struct {
 type APIFunc func(w http.ResponseWriter, r *http.Request) error
 
 type APIError struct {
-	Error string `json:"error"`
+	//Error string `json:"error"`
+	statusCode int
+	message    string
+}
+
+func (e APIError) Error() string {
+	return e.message
 }
 
 // handle JSON responses
@@ -35,7 +42,10 @@ func modifyAPIFunc(fn APIFunc) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := fn(w, r); err != nil {
-			JSONResponse(w, http.StatusBadRequest, APIError{err.Error()})
+			if e, ok := err.(APIError); ok {
+				slog.Error("API error", "err", e, "status", e.statusCode)
+				JSONResponse(w, e.statusCode, e)
+			}
 		}
 	}
 
@@ -85,7 +95,10 @@ func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) er
 		Offset: 0,
 	})
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 
 	return JSONResponse(w, http.StatusOK, accounts)
@@ -97,7 +110,10 @@ func (s *APIServer) handleGetTranfers(w http.ResponseWriter, r *http.Request) er
 		Offset: 0,
 	})
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 	return JSONResponse(w, http.StatusOK, transfers)
 }
@@ -108,7 +124,10 @@ func (s *APIServer) handleGetEntries(w http.ResponseWriter, r *http.Request) err
 		Offset: 0,
 	})
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 
 	return JSONResponse(w, http.StatusOK, entries)
@@ -122,7 +141,10 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 	account, err := s.store.GetAccount(r.Context(), i)
 
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 	return JSONResponse(w, http.StatusOK, account)
 }
@@ -135,7 +157,10 @@ func (s *APIServer) handleGetEntry(w http.ResponseWriter, r *http.Request) error
 	entry, err := s.store.GetEntry(r.Context(), i)
 
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 	return JSONResponse(w, http.StatusOK, entry)
 }
@@ -148,7 +173,11 @@ func (s *APIServer) handleGetTransfer(w http.ResponseWriter, r *http.Request) er
 	transfer, err := s.store.GetEntry(r.Context(), i)
 
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
+
 	}
 	return JSONResponse(w, http.StatusOK, transfer)
 
@@ -159,11 +188,17 @@ func (s *APIServer) handleTransferTx(w http.ResponseWriter, r *http.Request) err
 	params := TransferTxRequest{}
 	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 	validate := validator.New()
 	if err := validate.Struct(params); err != nil {
-		return err
+		return APIError{
+			message:    "fill all the required fields",
+			statusCode: http.StatusBadRequest,
+		}
 	}
 	transferTxResult, err := s.store.TransferTx(r.Context(), database.TransferTxParams{
 		SenderID:   params.SenderID,
@@ -172,7 +207,10 @@ func (s *APIServer) handleTransferTx(w http.ResponseWriter, r *http.Request) err
 	})
 
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 	return JSONResponse(w, http.StatusOK, transferTxResult)
 }
@@ -181,11 +219,17 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 	err := json.NewDecoder(r.Body).Decode(&params)
 
 	if err != nil {
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 	validate := validator.New()
 	if err := validate.Struct(params); err != nil {
-		return err
+		return APIError{
+			message:    "fill all the required fields",
+			statusCode: http.StatusBadRequest,
+		}
 	}
 
 	account, err := s.store.CreateAccount(r.Context(), database.CreateAccountParams{
@@ -196,7 +240,10 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 
-		return err
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
 	return JSONResponse(w, http.StatusOK, account)
 }
