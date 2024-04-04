@@ -1,6 +1,7 @@
-package main
+package api
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"log/slog"
@@ -8,7 +9,9 @@ import (
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/lib/pq"
 	"github.com/mbeka02/bank/internal/database"
+	"github.com/mbeka02/bank/utils"
 )
 
 type APIServer struct {
@@ -19,10 +22,11 @@ type APIServer struct {
 type APIFunc func(w http.ResponseWriter, r *http.Request) error
 
 type APIError struct {
-	//Error string `json:"error"`
 	statusCode int
 	message    string
 }
+
+var validate *validator.Validate
 
 func (e APIError) Error() string {
 	return e.message
@@ -30,7 +34,6 @@ func (e APIError) Error() string {
 
 // handle JSON responses
 func JSONResponse(w http.ResponseWriter, statusCode int, payload interface{}) error {
-
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
@@ -43,8 +46,9 @@ func modifyAPIFunc(fn APIFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := fn(w, r); err != nil {
 			if e, ok := err.(APIError); ok {
+				JSONResponse(w, e.statusCode, e.message)
+
 				slog.Error("API error", "err", e, "status", e.statusCode)
-				JSONResponse(w, e.statusCode, e)
 			}
 		}
 	}
@@ -66,7 +70,7 @@ func (s *APIServer) Run() {
 	router.HandleFunc("POST /accounts", modifyAPIFunc(s.handleCreateAccount))
 
 	router.HandleFunc("GET /transfers", modifyAPIFunc(s.handleGetTranfers))
-	router.HandleFunc("POST /transfers", modifyAPIFunc(s.handleTransferTx))
+	router.HandleFunc("POST /transfers", modifyAPIFunc(s.handleTransferRequest))
 
 	router.HandleFunc("GET /entries", modifyAPIFunc(s.handleGetEntries))
 
@@ -183,7 +187,7 @@ func (s *APIServer) handleGetTransfer(w http.ResponseWriter, r *http.Request) er
 
 }
 
-func (s *APIServer) handleTransferTx(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleTransferRequest(w http.ResponseWriter, r *http.Request) error {
 
 	params := TransferTxRequest{}
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -193,10 +197,24 @@ func (s *APIServer) handleTransferTx(w http.ResponseWriter, r *http.Request) err
 			statusCode: http.StatusInternalServerError,
 		}
 	}
-	validate := validator.New()
+	validate = validator.New()
+	validate.RegisterValidation("currency", utils.ValidCurrency)
 	if err := validate.Struct(params); err != nil {
 		return APIError{
-			message:    "fill all the required fields",
+			message:    "field validation error" + err.Error(),
+			statusCode: http.StatusBadRequest,
+		}
+	}
+
+	if !s.validAccount(r.Context(), params.SenderID, params.Currency) {
+		return APIError{
+			message:    "Invalid transfer details:transfer currency mismatch",
+			statusCode: http.StatusBadRequest,
+		}
+	}
+	if !s.validAccount(r.Context(), params.ReceiverID, params.Currency) {
+		return APIError{
+			message:    "Invalid transfer details:transfer currency mismatch",
 			statusCode: http.StatusBadRequest,
 		}
 	}
@@ -224,22 +242,30 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 			statusCode: http.StatusInternalServerError,
 		}
 	}
-	validate := validator.New()
+	validate = validator.New()
 	if err := validate.Struct(params); err != nil {
 		return APIError{
-			message:    "fill all the required fields",
+			message:    "field validation error" + err.Error(),
 			statusCode: http.StatusBadRequest,
 		}
 	}
 
 	account, err := s.store.CreateAccount(r.Context(), database.CreateAccountParams{
-		FullName: params.FullName,
+		Owner:    params.Owner,
 		Currency: params.Currency,
 		Balance:  0,
 	})
 
 	if err != nil {
-
+		if pqErr, ok := err.(*pq.Error); ok {
+			switch pqErr.Code.Name() {
+			case "foreign_key_violation", "unique_violation":
+				return APIError{
+					message:    "forbidden",
+					statusCode: http.StatusForbidden,
+				}
+			}
+		}
 		return APIError{
 			message:    "unable to process the request",
 			statusCode: http.StatusInternalServerError,
@@ -252,4 +278,15 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 func getIDFromRequest(r *http.Request) (int64, error) {
 	id := r.PathValue("id")
 	return strconv.ParseInt(id, 10, 64)
+}
+
+func (s *APIServer) validAccount(ctx context.Context, accountID int64, currency string) bool {
+	acc, err := s.store.GetAccount(ctx, accountID)
+	if err != nil {
+		return false
+	}
+	if acc.Currency == currency {
+		return true
+	}
+	return false
 }

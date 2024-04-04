@@ -13,7 +13,7 @@ CREATE INDEX ON transfers(sender_id);
 
 CREATE INDEX ON transfers(receiver_id);
 
-CREATE INDEX ON transfers(sender_id, receiver_id);
+CREATE INDEX ON transfers(sender_id,receiver_id);
 
 
 

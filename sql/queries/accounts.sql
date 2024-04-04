@@ -18,7 +18,7 @@ UPDATE accounts SET balance=balance +sqlc.arg(amount) WHERE id=sqlc.arg(id) RETU
 
 
 -- name: CreateAccount :one
-INSERT INTO accounts (full_name, balance, currency)
+INSERT INTO accounts (owner, balance, currency)
 VALUES ($1,$2,$3)
 RETURNING *;
 
