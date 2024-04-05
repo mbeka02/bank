@@ -65,6 +65,8 @@ func NewServer(addr string, store *database.Store) *APIServer {
 func (s *APIServer) Run() {
 	router := http.NewServeMux()
 
+	router.HandleFunc("POST /", modifyAPIFunc(s.handleCreateAccount))
+
 	router.HandleFunc("GET /", modifyAPIFunc(s.handleGreetings))
 	router.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
 	router.HandleFunc("POST /accounts", modifyAPIFunc(s.handleCreateAccount))
@@ -272,6 +274,57 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 	return JSONResponse(w, http.StatusOK, account)
+}
+
+func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) error {
+	params := CreateUserRequest{}
+	err := json.NewDecoder(r.Body).Decode(&params)
+
+	if err != nil {
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
+	}
+	validate = validator.New()
+	if err := validate.Struct(params); err != nil {
+		return APIError{
+			message:    "field validation error" + err.Error(),
+			statusCode: http.StatusBadRequest,
+		}
+	}
+	passwordHash, err := utils.HashPassword(params.Password)
+	if err != nil {
+		return APIError{
+			message:    err.Error(),
+			statusCode: http.StatusInternalServerError,
+		}
+	}
+	user, err := s.store.CreateUser(r.Context(), database.CreateUserParams{
+		UserName: params.Username,
+		FullName: params.Fullname,
+		Email:    params.Email,
+		Password: passwordHash,
+	})
+
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			switch pqErr.Code.Name() {
+			case "unique_violation":
+				return APIError{
+					message:    "forbidden: the username or email are already in use",
+					statusCode: http.StatusForbidden,
+				}
+			}
+		}
+	}
+	userResponse := CreateUserResponse{
+		Username: user.UserName,
+		Fullname: user.FullName,
+		Email:    user.Email,
+	}
+	return JSONResponse(w, http.StatusCreated, userResponse)
+
 }
 
 // get path value and convert it to int64

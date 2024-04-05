@@ -11,3 +11,16 @@ type TransferTxRequest struct {
 	ReceiverID int64  `json:"receiver_id" validate:"required,gt=0"`
 	Currency   string `json:"currency" validate:"required,currency"`
 }
+
+type CreateUserRequest struct {
+	Username string `json:"user_name" validate:"required"`
+	Fullname string `json:"full_name" validate:"required"`
+	Password string `json:"password" validate:"required,min=8"`
+	Email    string `json:"email" validate:"required,email"`
+}
+
+type CreateUserResponse struct {
+	Username string `json:"user_name" validate:"required"`
+	Fullname string `json:"full_name" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+}
