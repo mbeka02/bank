@@ -8,10 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestJWTMaker(t *testing.T) {
-	maker, err := NewJWTMaker(utils.RandString(32))
-	require.NoError(t, err)
+func TestPasetoMaker(t *testing.T) {
 	username := utils.RandName()
+
+	maker, err := NewPasetoMaker(utils.RandString(32))
+	require.NoError(t, err)
 	duration := time.Minute
 	issuedAt := time.Now()
 	expiresAt := time.Now().Add(duration)
@@ -27,10 +28,11 @@ func TestJWTMaker(t *testing.T) {
 	require.Equal(t, username, claims.Username)
 	require.WithinDuration(t, issuedAt, claims.IssuedAt, time.Second)
 	require.WithinDuration(t, expiresAt, claims.ExpiresAt, time.Second)
+
 }
 
-func TestExpiredJWTToken(t *testing.T) {
-	maker, err := NewJWTMaker(utils.RandString(32))
+func TestExpiredPasetoToken(t *testing.T) {
+	maker, err := NewPasetoMaker(utils.RandString(32))
 	require.NoError(t, err)
 	username := utils.RandName()
 	duration := -time.Minute

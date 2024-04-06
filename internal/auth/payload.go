@@ -3,10 +3,9 @@ package auth
 import (
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
-
-//var ErrExpiredToken = errors.New("The token has expired")
 
 // payload data of the token
 type Payload struct {
@@ -14,6 +13,7 @@ type Payload struct {
 	IssuedAt  time.Time `json:"issued_at"`
 	ExpiresAt time.Time `json:"expires_at"`
 	ID        uuid.UUID `json:"id"`
+	jwt.RegisteredClaims
 }
 
 func NewPayload(username string, duration time.Duration) (*Payload, error) {
