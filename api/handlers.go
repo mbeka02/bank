@@ -1,93 +1,15 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
-	"log"
-	"log/slog"
-	"net/http"
-	"strconv"
-
 	"github.com/go-playground/validator/v10"
 	"github.com/lib/pq"
 	"github.com/mbeka02/bank/internal/database"
 	"github.com/mbeka02/bank/utils"
+	"net/http"
 )
 
-type APIServer struct {
-	Addr  string
-	store *database.Store
-}
-
-type APIFunc func(w http.ResponseWriter, r *http.Request) error
-
-type APIError struct {
-	statusCode int
-	message    string
-}
-
 var validate *validator.Validate
-
-func (e APIError) Error() string {
-	return e.message
-}
-
-// handle JSON responses
-func JSONResponse(w http.ResponseWriter, statusCode int, payload interface{}) error {
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-
-	return json.NewEncoder(w).Encode(&payload)
-}
-
-// returns a normal http handler function
-func modifyAPIFunc(fn APIFunc) http.HandlerFunc {
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := fn(w, r); err != nil {
-			if e, ok := err.(APIError); ok {
-				JSONResponse(w, e.statusCode, e.message)
-
-				slog.Error("API error", "err", e, "status", e.statusCode)
-			}
-		}
-	}
-
-}
-func NewServer(addr string, store *database.Store) *APIServer {
-
-	return &APIServer{
-		Addr:  addr,
-		store: store,
-	}
-}
-
-func (s *APIServer) Run() {
-	router := http.NewServeMux()
-
-	router.HandleFunc("POST /", modifyAPIFunc(s.handleCreateAccount))
-
-	router.HandleFunc("GET /", modifyAPIFunc(s.handleGreetings))
-	router.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
-	router.HandleFunc("POST /accounts", modifyAPIFunc(s.handleCreateAccount))
-
-	router.HandleFunc("GET /transfers", modifyAPIFunc(s.handleGetTranfers))
-	router.HandleFunc("POST /transfers", modifyAPIFunc(s.handleTransferRequest))
-
-	router.HandleFunc("GET /entries", modifyAPIFunc(s.handleGetEntries))
-
-	router.HandleFunc("GET /accounts/{id}", modifyAPIFunc(s.handleGetAccount))
-	router.HandleFunc("GET /entries/{id}", modifyAPIFunc(s.handleGetEntry))
-	router.HandleFunc("GET /transfers/{id}", modifyAPIFunc(s.handleGetTransfer))
-	log.Printf("Server is running on port %v", s.Addr)
-
-	err := http.ListenAndServe(s.Addr, router)
-
-	if err != nil {
-		log.Fatal("Unable to spin up the server")
-	}
-
-}
 
 func (s *APIServer) handleGreetings(w http.ResponseWriter, r *http.Request) error {
 	name := "anthony"
@@ -318,28 +240,47 @@ func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) err
 			}
 		}
 	}
-	userResponse := CreateUserResponse{
-		Username: user.UserName,
-		Fullname: user.FullName,
-		Email:    user.Email,
-	}
+	userResponse := newUserResponse(user)
 	return JSONResponse(w, http.StatusCreated, userResponse)
 
 }
 
-// get path value and convert it to int64
-func getIDFromRequest(r *http.Request) (int64, error) {
-	id := r.PathValue("id")
-	return strconv.ParseInt(id, 10, 64)
-}
+func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
+	params := LoginRequest{}
+	err := json.NewDecoder(r.Body).Decode(&params)
 
-func (s *APIServer) validAccount(ctx context.Context, accountID int64, currency string) bool {
-	acc, err := s.store.GetAccount(ctx, accountID)
 	if err != nil {
-		return false
+		return APIError{
+			message:    "unable to process the request",
+			statusCode: http.StatusInternalServerError,
+		}
 	}
-	if acc.Currency == currency {
-		return true
+	validate = validator.New()
+	if err := validate.Struct(params); err != nil {
+		return APIError{
+			message:    "field validation error" + err.Error(),
+			statusCode: http.StatusBadRequest,
+		}
 	}
-	return false
+	user, err := s.store.GetUser(r.Context(), params.Username)
+	if err != nil {
+		return APIError{
+			message:    "invalid username",
+			statusCode: http.StatusNotFound,
+		}
+	}
+	err = utils.ComparePassword(params.Password, user.Password)
+	if err != nil {
+		return APIError{
+			message:    "unauthorized",
+			statusCode: http.StatusUnauthorized,
+		}
+	}
+	token, err := s.maker.CreateToken(user.UserName, s.config.AccessTokenDuration)
+	userResponse := newUserResponse(user)
+	rsp := LoginResponse{
+		User:        userResponse,
+		AccessToken: token,
+	}
+	return JSONResponse(w, http.StatusCreated, rsp)
 }

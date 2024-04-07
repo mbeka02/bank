@@ -1,29 +1,32 @@
 package main
 
 import (
-	"log"
-	"os"
-
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/mbeka02/bank/api"
 	"github.com/mbeka02/bank/internal/database"
+	"github.com/mbeka02/bank/utils"
+	"log"
 )
 
 func main() {
-	godotenv.Load(".env")
-	connectionString := os.Getenv("DB_URL")
+	config, err := utils.LoadConfig(".")
+	if err != nil {
+		log.Fatal("cannot load config", err)
+	}
 
-	if connectionString == "" {
+	if config.DBUrl == "" {
 		log.Fatal("connection string is not set")
 	}
 
-	store, err := database.NewPostgresStore(connectionString)
+	store, err := database.NewPostgresStore(config.DBUrl)
 
 	if err != nil {
 		log.Fatal(err)
 	}
-	server := api.NewServer(":5413", store)
+	server, err := api.NewServer(":5413", store, config)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	server.Run()
 }
