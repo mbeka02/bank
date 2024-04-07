@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/mbeka02/bank/utils"
 )
 
 var testQueries *Queries
@@ -19,15 +19,12 @@ const (
 
 func TestMain(m *testing.M) {
 	var err error
-	godotenv.Load("../../.env")
-	connString := os.Getenv("DB_URL")
-
-	if connString == "" {
-		log.Fatal("connection string is not set")
-
+	config, err := utils.LoadConfig("../..")
+	if err != nil {
+		log.Fatal("cannot load config", err)
 	}
 
-	testDB, err = sql.Open(dbDriver, connString)
+	testDB, err = sql.Open(dbDriver, config.DBUrl)
 
 	if err != nil {
 		log.Fatal(err)
