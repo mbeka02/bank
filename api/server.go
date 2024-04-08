@@ -14,24 +14,30 @@ import (
 )
 
 type APIServer struct {
-	addr   string
-	store  *database.Store
-	maker  auth.Maker
-	config utils.Config
+	addr       string
+	store      *database.Store
+	tokenMaker auth.Maker
+	config     utils.Config
+}
+
+type APIFunc func(w http.ResponseWriter, r *http.Request) error
+
+type APIError struct {
+	statusCode int
+	message    string
 }
 
 func NewServer(addr string, store *database.Store, config utils.Config) (*APIServer, error) {
-	fmt.Println(config)
-	maker, err := auth.NewPasetoMaker(config.SymmetricKey)
+	maker, err := auth.NewJWTMaker(config.SymmetricKey)
 
 	if err != nil {
 		return nil, fmt.Errorf("Unable to create a new server instance: %v", err)
 	}
 
 	return &APIServer{
-		addr:  addr,
-		store: store,
-		maker: maker,
+		addr:       addr,
+		store:      store,
+		tokenMaker: maker,
 	}, nil
 }
 
@@ -39,12 +45,12 @@ func (s *APIServer) Run() {
 	router := http.NewServeMux()
 	router.HandleFunc("GET /", modifyAPIFunc(s.handleGreetings))
 
-	router.HandleFunc("POST /register", modifyAPIFunc(s.handleCreateAccount))
+	router.HandleFunc("POST /register", modifyAPIFunc(s.handleCreateUser))
 	router.HandleFunc("POST /login", modifyAPIFunc(s.handleLogin))
 	router.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
 	router.HandleFunc("POST /accounts", modifyAPIFunc(s.handleCreateAccount))
 
-	router.HandleFunc("GET /transfers", modifyAPIFunc(s.handleGetTranfers))
+	router.HandleFunc("GET /transfers", authMiddleware(modifyAPIFunc(s.handleGetTranfers), s.tokenMaker))
 	router.HandleFunc("POST /transfers", modifyAPIFunc(s.handleTransferRequest))
 
 	router.HandleFunc("GET /entries", modifyAPIFunc(s.handleGetEntries))
@@ -60,14 +66,6 @@ func (s *APIServer) Run() {
 		log.Fatal("Unable to spin up the server")
 	}
 }
-
-type APIFunc func(w http.ResponseWriter, r *http.Request) error
-
-type APIError struct {
-	statusCode int
-	message    string
-}
-
 func (e APIError) Error() string {
 	return e.message
 }

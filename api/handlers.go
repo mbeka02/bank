@@ -241,7 +241,7 @@ func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) err
 		}
 	}
 	userResponse := newUserResponse(user)
-	return JSONResponse(w, http.StatusCreated, userResponse)
+	return JSONResponse(w, http.StatusOK, userResponse)
 
 }
 
@@ -276,7 +276,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 			statusCode: http.StatusUnauthorized,
 		}
 	}
-	token, err := s.maker.CreateToken(user.UserName, s.config.AccessTokenDuration)
+	token, err := s.tokenMaker.CreateToken(user.UserName, s.config.AccessTokenDuration)
 	userResponse := newUserResponse(user)
 	rsp := LoginResponse{
 		User:        userResponse,
