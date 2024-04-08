@@ -51,8 +51,8 @@ func (maker *JWTMaker) ValidateToken(tokenString string) (*Payload, error) {
 		return nil, ErrInvalidToken
 	}
 
-	/*	if time.Now().After(claims.ExpiresAt) {
+	if time.Now().After(claims.ExpiresAt) {
 		return nil, ErrExpiredToken
-	}*/
+	}
 	return claims, nil
 }
