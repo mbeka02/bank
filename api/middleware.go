@@ -18,8 +18,8 @@ const (
 	authorizationPayloadKey = "authorization_payload"
 )
 
-func authMiddleware(handlerFunc http.HandlerFunc, tokenMaker auth.Maker) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func authMiddleware(next http.Handler, tokenMaker auth.Maker) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authorizationHeader := r.Header.Get("Authorization")
 		if len(authorizationHeader) == 0 {
 			denyAccess(w, "authorization header is not set")
@@ -46,6 +46,6 @@ func authMiddleware(handlerFunc http.HandlerFunc, tokenMaker auth.Maker) http.Ha
 		ctx := r.Context()
 		req := r.WithContext(context.WithValue(ctx, authorizationPayloadKey, payload))
 		*r = *req
-		handlerFunc(w, r)
-	}
+		next.ServeHTTP(w, r)
+	})
 }

@@ -2,20 +2,21 @@ package api
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/lib/pq"
 	"github.com/mbeka02/bank/internal/database"
 	"github.com/mbeka02/bank/utils"
-	"net/http"
 )
 
 var validate *validator.Validate
 
-func (s *APIServer) handleGreetings(w http.ResponseWriter, r *http.Request) error {
+/*func (s *APIServer) handleGreetings(w http.ResponseWriter, r *http.Request) error {
 	name := "anthony"
 	return JSONResponse(w, http.StatusOK, name)
 
-}
+}*/
 
 func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error {
 	accounts, err := s.store.GetAccounts(r.Context(), database.GetAccountsParams{

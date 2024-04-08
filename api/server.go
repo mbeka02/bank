@@ -43,21 +43,25 @@ func NewServer(addr string, store *database.Store, config utils.Config) (*APISer
 
 func (s *APIServer) Run() {
 	router := http.NewServeMux()
-	router.HandleFunc("GET /", modifyAPIFunc(s.handleGreetings))
 
 	router.HandleFunc("POST /register", modifyAPIFunc(s.handleCreateUser))
 	router.HandleFunc("POST /login", modifyAPIFunc(s.handleLogin))
-	router.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
-	router.HandleFunc("POST /accounts", modifyAPIFunc(s.handleCreateAccount))
 
-	router.HandleFunc("GET /transfers", authMiddleware(modifyAPIFunc(s.handleGetTranfers), s.tokenMaker))
-	router.HandleFunc("POST /transfers", modifyAPIFunc(s.handleTransferRequest))
+	authRoutes := http.NewServeMux()
+	router.Handle("/", authMiddleware(authRoutes, s.tokenMaker))
 
-	router.HandleFunc("GET /entries", modifyAPIFunc(s.handleGetEntries))
+	authRoutes.HandleFunc("GET /accounts", modifyAPIFunc(s.handleGetAccounts))
+	authRoutes.HandleFunc("POST /accounts", modifyAPIFunc(s.handleCreateAccount))
 
-	router.HandleFunc("GET /accounts/{id}", modifyAPIFunc(s.handleGetAccount))
-	router.HandleFunc("GET /entries/{id}", modifyAPIFunc(s.handleGetEntry))
-	router.HandleFunc("GET /transfers/{id}", modifyAPIFunc(s.handleGetTransfer))
+	authRoutes.HandleFunc("GET /transfers", modifyAPIFunc(s.handleGetTranfers))
+	authRoutes.HandleFunc("POST /transfers", modifyAPIFunc(s.handleTransferRequest))
+
+	authRoutes.HandleFunc("GET /entries", modifyAPIFunc(s.handleGetEntries))
+
+	authRoutes.HandleFunc("GET /accounts/{id}", modifyAPIFunc(s.handleGetAccount))
+	authRoutes.HandleFunc("GET /entries/{id}", modifyAPIFunc(s.handleGetEntry))
+	authRoutes.HandleFunc("GET /transfers/{id}", modifyAPIFunc(s.handleGetTransfer))
+
 	log.Printf("Server is running on port %v", s.addr)
 
 	err := http.ListenAndServe(s.addr, router)
