@@ -104,14 +104,14 @@ func getIDFromRequest(r *http.Request) (int64, error) {
 	return strconv.ParseInt(id, 10, 64)
 }
 
-func (s *APIServer) validAccount(ctx context.Context, accountID int64, currency string) bool {
+func (s *APIServer) validAccount(ctx context.Context, accountID int64, currency string) (database.Account, bool) {
 	acc, err := s.store.GetAccount(ctx, accountID)
 	if err != nil {
-		return false
+		return acc, false
 	}
 	if acc.Currency == currency {
-		return true
+		return acc, true
 	}
-	return false
+	return acc, false
 
 }
