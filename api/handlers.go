@@ -12,14 +12,15 @@ import (
 
 var validate *validator.Validate
 
-/*func (s *APIServer) handleGreetings(w http.ResponseWriter, r *http.Request) error {
-	name := "anthony"
-	return JSONResponse(w, http.StatusOK, name)
-
-}*/
-
 func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error {
+	//get auth info from request context
+	authPayload, err := getAuthPayload(r.Context())
+
+	if err != nil {
+		return err
+	}
 	accounts, err := s.store.GetAccounts(r.Context(), database.GetAccountsParams{
+		Owner:  authPayload.Username,
 		Limit:  30,
 		Offset: 0,
 	})
@@ -63,16 +64,25 @@ func (s *APIServer) handleGetEntries(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
-	i, err := getIDFromRequest(r)
+	//get auth info from request context
+	authPayload, err := getAuthPayload(r.Context())
+
+	accountNum, err := getIDFromRequest(r)
 	if err != nil {
 		return err
 	}
-	account, err := s.store.GetAccount(r.Context(), i)
+	account, err := s.store.GetAccount(r.Context(), accountNum)
 
 	if err != nil {
 		return APIError{
 			message:    "unable to process the request",
 			statusCode: http.StatusInternalServerError,
+		}
+	}
+	if account.Owner != authPayload.Username {
+		return APIError{
+			message:    "account doesn't belong to the current user",
+			statusCode: http.StatusUnauthorized,
 		}
 	}
 	return JSONResponse(w, http.StatusOK, account)
@@ -113,9 +123,14 @@ func (s *APIServer) handleGetTransfer(w http.ResponseWriter, r *http.Request) er
 }
 
 func (s *APIServer) handleTransferRequest(w http.ResponseWriter, r *http.Request) error {
+	//get auth info from request context
+	authPayload, err := getAuthPayload(r.Context())
+	if err != nil {
+		return err
+	}
 
 	params := TransferTxRequest{}
-	err := json.NewDecoder(r.Body).Decode(&params)
+	err = json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
 		return APIError{
 			message:    "unable to process the request",
@@ -131,16 +146,23 @@ func (s *APIServer) handleTransferRequest(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	if !s.validAccount(r.Context(), params.SenderID, params.Currency) {
+	senderAcc, valid := s.validAccount(r.Context(), params.SenderID, params.Currency)
+	if !valid {
 		return APIError{
 			message:    "Invalid transfer details:transfer currency mismatch",
 			statusCode: http.StatusBadRequest,
 		}
 	}
-	if !s.validAccount(r.Context(), params.ReceiverID, params.Currency) {
+	if _, valid := s.validAccount(r.Context(), params.ReceiverID, params.Currency); !valid {
 		return APIError{
 			message:    "Invalid transfer details:transfer currency mismatch",
 			statusCode: http.StatusBadRequest,
+		}
+	}
+	if authPayload.Username != senderAcc.Owner {
+		return APIError{
+			message:    "sender account doesn't belong to the current user",
+			statusCode: http.StatusUnauthorized,
 		}
 	}
 	transferTxResult, err := s.store.TransferTx(r.Context(), database.TransferTxParams{
@@ -158,8 +180,16 @@ func (s *APIServer) handleTransferRequest(w http.ResponseWriter, r *http.Request
 	return JSONResponse(w, http.StatusOK, transferTxResult)
 }
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
+
+	//get auth info from request context
+	authPayload, err := getAuthPayload(r.Context())
+
+	if err != nil {
+		return err
+	}
+
 	params := CreateAccountRequest{}
-	err := json.NewDecoder(r.Body).Decode(&params)
+	err = json.NewDecoder(r.Body).Decode(&params)
 
 	if err != nil {
 		return APIError{
@@ -170,13 +200,14 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 	validate = validator.New()
 	if err := validate.Struct(params); err != nil {
 		return APIError{
-			message:    "field validation error" + err.Error(),
+			message:    "field validation error:" + err.Error(),
 			statusCode: http.StatusBadRequest,
 		}
 	}
 
 	account, err := s.store.CreateAccount(r.Context(), database.CreateAccountParams{
-		Owner:    params.Owner,
+		// a logged in use can only create an account for themselves
+		Owner:    authPayload.Username,
 		Currency: params.Currency,
 		Balance:  0,
 	})

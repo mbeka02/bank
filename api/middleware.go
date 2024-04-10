@@ -9,14 +9,26 @@ import (
 	"github.com/mbeka02/bank/internal/auth"
 )
 
-func denyAccess(w http.ResponseWriter, msg string) {
-	JSONResponse(w, http.StatusUnauthorized, msg)
-}
-
 const (
 	authorizationTypeBearer = "bearer"
 	authorizationPayloadKey = "authorization_payload"
 )
+
+func denyAccess(w http.ResponseWriter, msg string) {
+	JSONResponse(w, http.StatusUnauthorized, msg)
+}
+func getAuthPayload(ctx context.Context) (*auth.Payload, error) {
+	payload, ok := ctx.Value(authorizationPayloadKey).(*auth.Payload)
+
+	if !ok {
+		return nil, APIError{
+			message:    "internal server error",
+			statusCode: http.StatusInternalServerError,
+		}
+	}
+
+	return payload, nil
+}
 
 func authMiddleware(next http.Handler, tokenMaker auth.Maker) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
