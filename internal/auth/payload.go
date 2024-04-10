@@ -26,7 +26,7 @@ func NewPayload(username string, duration time.Duration) (*Payload, error) {
 		ID:        uuid,
 		Username:  username,
 		IssuedAt:  time.Now(),
-		ExpiresAt: time.Now().Add(duration /*+ time.Hour*/),
+		ExpiresAt: time.Now().Add(duration),
 	}, nil
 }
 
