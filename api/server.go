@@ -38,6 +38,7 @@ func NewServer(addr string, store *database.Store, config utils.Config) (*APISer
 		addr:       addr,
 		store:      store,
 		tokenMaker: maker,
+		config:     config,
 	}, nil
 }
 

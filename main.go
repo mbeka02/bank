@@ -1,11 +1,12 @@
 package main
 
 import (
+	"log"
+
 	_ "github.com/lib/pq"
 	"github.com/mbeka02/bank/api"
 	"github.com/mbeka02/bank/internal/database"
 	"github.com/mbeka02/bank/utils"
-	"log"
 )
 
 func main() {

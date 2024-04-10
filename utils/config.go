@@ -19,9 +19,10 @@ func LoadConfig(path string) (config Config, err error) {
 	viper.AddConfigPath(path)
 	viper.SetConfigName("app")
 	viper.SetConfigType("env")
-
+	//check if env vars match any of the keys
 	viper.AutomaticEnv()
 
+	//load config file
 	err = viper.ReadInConfig()
 	if err != nil {
 		return
