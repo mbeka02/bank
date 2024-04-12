@@ -24,7 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server, err := api.NewServer(":5413", store, config)
+	server, err := api.NewServer(store, config)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -12,6 +12,7 @@ type Config struct {
 	DBUrl               string        `mapstructure:"DB_URL"`
 	AccessTokenDuration time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
 	SymmetricKey        string        `mapstructure:"SYMMETRIC_KEY"`
+	Port                string        `mapstructure:"PORT"`
 }
 
 // LoadConfig reads configuration from file or environment variables.
