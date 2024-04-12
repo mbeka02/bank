@@ -27,7 +27,7 @@ type APIError struct {
 	message    string
 }
 
-func NewServer(addr string, store *database.Store, config utils.Config) (*APIServer, error) {
+func NewServer(store *database.Store, config utils.Config) (*APIServer, error) {
 	maker, err := auth.NewJWTMaker(config.SymmetricKey)
 
 	if err != nil {
@@ -35,7 +35,7 @@ func NewServer(addr string, store *database.Store, config utils.Config) (*APISer
 	}
 
 	return &APIServer{
-		addr:       addr,
+		addr:       config.Port,
 		store:      store,
 		tokenMaker: maker,
 		config:     config,
