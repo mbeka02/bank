@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	_ "github.com/lib/pq"
-	"github.com/mbeka02/bank/utils"
 )
 
 var testQueries *Queries
@@ -19,12 +18,8 @@ const (
 
 func TestMain(m *testing.M) {
 	var err error
-	config, err := utils.LoadConfig("../..")
-	if err != nil {
-		log.Fatal("cannot load config", err)
-	}
 
-	testDB, err = sql.Open(dbDriver, config.DBUrl)
+	testDB, err = sql.Open(dbDriver, "postgres://root:postgres@localhost:5432/simple_bank?sslmode=disable")
 
 	if err != nil {
 		log.Fatal(err)
