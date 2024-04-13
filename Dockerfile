@@ -23,4 +23,3 @@ COPY /sql/schema ./schema
 EXPOSE 8080
 CMD ["/app/main"]
 ENTRYPOINT ["/app/start.sh"]
-
